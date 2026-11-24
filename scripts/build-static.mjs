@@ -2,7 +2,7 @@
 /**
  * Static build of the PUBLIC site for GitHub Pages (or any static hosting).
  *
- *   BASE_PATH=/rs SITE_URL=https://psv98.github.io/rs npm run build:static
+ *   BASE_PATH=/rsm SITE_URL=https://sf2224.github.io/rsm npm run build:static
  *
  * 1. validates data/published/snapshots.json (same publication rules as the admin);
  * 2. pre-renders all PNG / ZIP exports into public/exports;

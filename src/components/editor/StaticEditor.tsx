@@ -32,7 +32,7 @@ const byDate = (a: Entry, b: Entry) => (a.data.asOfDate < b.data.asOfDate ? -1 :
 /**
  * Editor for the GitHub Pages site. The data lives in data/published/snapshots.json in the
  * repository; publishing = one commit, after which GitHub Actions rebuilds the site and
- * all PNG files. Access = a GitHub token with write access to psv98/rs, kept on this
+ * all PNG files. Access = a GitHub token with write access to the site repository (REPO), kept on this
  * device encrypted with the editor password.
  */
 export function StaticEditor() {

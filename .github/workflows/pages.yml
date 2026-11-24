@@ -59,6 +59,7 @@ jobs:
         # forced push to gh-pages keeps the custom domain instead of wiping it.
         env:
           PAGES_DOMAIN: ${{ vars.PAGES_DOMAIN }}
+          NEXT_PUBLIC_GITHUB_REPOSITORY: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |

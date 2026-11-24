@@ -2,7 +2,10 @@
  * Minimal GitHub REST client for the static editor. Everything runs in the browser:
  * the token never leaves this device except in requests to api.github.com.
  */
-export const REPO = { owner: "psv98", repo: "rs", branch: "main", file: "data/published/snapshots.json" } as const;
+// The repository the site is built from. The Pages workflow passes it in
+// (NEXT_PUBLIC_GITHUB_REPOSITORY = owner/name), so moving the repo needs no code change.
+const [repoOwner, repoName] = (process.env.NEXT_PUBLIC_GITHUB_REPOSITORY || "sf2224/rsm").split("/") as [string, string];
+export const REPO = { owner: repoOwner, repo: repoName, branch: "main", file: "data/published/snapshots.json" } as const;
 const API = "https://api.github.com";
 
 export class GitHubError extends Error {
@@ -57,7 +60,7 @@ export async function checkAccess(token: string): Promise<string> {
       });
     } catch (e) {
       if (e instanceof GitHubError && (e.status === 403 || e.status === 404))
-        throw new GitHubError("Цей токен не має права запису в репозиторій psv98/rs.", 403);
+        throw new GitHubError(`Цей токен не має права запису в репозиторій ${REPO.owner}/${REPO.repo}.`, 403);
       throw e;
     }
   }

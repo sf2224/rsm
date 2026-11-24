@@ -2,7 +2,7 @@ import type { Locale } from "./data/schema";
 
 /**
  * Build-time settings shared by server and client code.
- * NEXT_PUBLIC_BASE_PATH is "/rs" for GitHub Pages (https://<user>.github.io/rs/), "" otherwise.
+ * NEXT_PUBLIC_BASE_PATH is "/<repo>" for GitHub Pages (https://<owner>.github.io/<repo>/), "" otherwise.
  */
 export const BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
 export const IS_STATIC = process.env.NEXT_PUBLIC_STATIC_EXPORT === "1";
