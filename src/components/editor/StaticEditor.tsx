@@ -23,7 +23,11 @@ import {
   type RunState,
 } from "./github";
 
-type Entry = { revision: number; publishedAt: string | null; data: SnapshotData };
+type Entry = {
+  revision: number;
+  publishedAt: string | null;
+  data: SnapshotData;
+};
 type FileJson = { format: string; version: number; snapshots: Entry[] };
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -70,7 +74,13 @@ function Gate({ onReady }: { onReady: (token: string, login: string) => void }) 
       const l = await checkAccess(t);
       onReady(t, l);
     } catch (e) {
-      setError(e instanceof GitHubError && e.status === 401 ? "Токен більше не дійсний (прострочений або відкликаний). Налаштуйте вхід заново." : (e as Error).message);
+      setError(
+        e instanceof GitHubError
+          ? e.status === 401
+            ? "Ключ доступу більше не дійсний. Попросіть у адміністратора новий і натисніть «Увійти з ключем доступу»."
+            : e.message
+          : (e as Error).message,
+      );
     } finally {
       setBusy(false);
     }
@@ -86,7 +96,7 @@ function Gate({ onReady }: { onReady: (token: string, login: string) => void }) 
       await saveVault(t, password, l);
       onReady(t, l);
     } catch (e) {
-      setError(e instanceof GitHubError && e.status === 401 ? "GitHub не прийняв токен. Перевірте, що скопіювали його повністю." : (e as Error).message);
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -96,12 +106,28 @@ function Gate({ onReady }: { onReady: (token: string, login: string) => void }) 
   return (
     <div className="adm-login">
       <div className="adm-card" style={{ width: "min(36rem, 100%)", display: "grid", gap: "1rem" }}>
-        <h1 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>Редактор даних</h1>
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-display)",
+            fontSize: "1.5rem",
+          }}
+        >
+          Редактор даних
+        </h1>
         {mode === "password" ? (
           <>
-            <p className="muted">Вхід на цьому пристрої{vaultLogin() ? ` як ${vaultLogin()}` : ""}.</p>
-            <Field label="Пароль редактора">
-              <input className="adm-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && unlock()} autoFocus />
+            <p className="muted">Введіть пароль, який ви придумали під час першого входу в цьому браузері.</p>
+            <Field label="Пароль">
+              <input
+                className="adm-input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && unlock()}
+                autoFocus
+              />
             </Field>
             <button className="btn btn--primary" disabled={busy || !password} onClick={unlock}>
               {busy ? "Перевіряю…" : "Увійти"}
@@ -114,32 +140,29 @@ function Gate({ onReady }: { onReady: (token: string, login: string) => void }) 
                 setPassword("");
               }}
             >
-              Налаштувати вхід заново
+              Забули пароль? Увійти з ключем доступу
             </button>
           </>
         ) : (
           <>
+            <p className="muted">Перший вхід у цьому браузері. Вставте ключ доступу, який вам дав адміністратор сайту, і придумайте пароль.</p>
             <p className="muted">
-              Перший вхід на цьому пристрої. Потрібен GitHub-токен з правом запису лише в репозиторій {REPO.owner}/{REPO.repo}. Токен зберігається тільки на цьому пристрої,
-              зашифрований вашим паролем.
+              Ключ і пароль зберігаються лише в цьому браузері. На іншому пристрої чи в іншому браузері цей крок потрібно повторити: вставити той самий ключ і
+              придумати пароль. Тому збережіть ключ у надійному місці й нікому його не пересилайте.
             </p>
-            <ol style={{ display: "grid", gap: "0.5rem", paddingLeft: "1.25rem", listStyle: "decimal", color: "var(--color-ash)", fontSize: "0.875rem" }}>
-              <li>
-                Відкрийте{" "}
-                <a className="link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
-                  github.com → Fine-grained token
-                </a>
-                .
-              </li>
-              <li>Repository access: Only select repositories → {REPO.owner}/{REPO.repo}.</li>
-              <li>Permissions → Repository → Contents: Read and write. Інше не потрібно (Actions: Read можна додати, щоб бачити статус публікації).</li>
-              <li>Термін дії: 90 днів. Створіть токен і вставте його нижче.</li>
-            </ol>
-            <Field label="GitHub-токен">
-              <input className="adm-input" type="password" autoComplete="off" spellCheck={false} value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder="github_pat_…" />
+            <Field label="Ключ доступу">
+              <input
+                className="adm-input"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="Вставте ключ"
+              />
             </Field>
             <div className="adm-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <Field label="Новий пароль редактора" hint="Щонайменше 10 символів">
+              <Field label="Придумайте пароль" hint="Щонайменше 10 символів. Він потрібен для входу в цьому браузері">
                 <input className="adm-input" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
               </Field>
               <Field label="Повторіть пароль">
@@ -187,7 +210,15 @@ const STEPS: Array<{ id: Step; title: string; help: string }> = [
 ];
 type Step = "main" | "categories" | "history" | "texts";
 const stepOf = (field?: string): Step =>
-  !field ? "main" : field.startsWith("categories") ? "categories" : field.startsWith("history") ? "history" : field.startsWith("texts") || field.startsWith("sources") ? "texts" : "main";
+  !field
+    ? "main"
+    : field.startsWith("categories")
+      ? "categories"
+      : field.startsWith("history")
+        ? "history"
+        : field.startsWith("texts") || field.startsWith("sources")
+          ? "texts"
+          : "main";
 
 function Workspace({ token, login, onLogout }: { token: string; login: string; onLogout: () => void }) {
   const [file, setFile] = useState<FileJson | null>(null);
@@ -199,7 +230,12 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ commit: string; state: RunState; asOf: string; scheduled?: boolean } | null>(null);
+  const [done, setDone] = useState<{
+    commit: string;
+    state: RunState;
+    asOf: string;
+    scheduled?: boolean;
+  } | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
 
   const today = todayIso();
@@ -216,7 +252,10 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
     try {
       const r = await readDataFile(token);
       const f = r.json as FileJson;
-      f.snapshots = f.snapshots.map((x) => ({ ...x, data: snapshotDataSchema.parse(x.data) }));
+      f.snapshots = f.snapshots.map((x) => ({
+        ...x,
+        data: snapshotDataSchema.parse(x.data),
+      }));
       setFile(f);
       setSha(r.sha);
       const sorted = [...f.snapshots].sort(byDate);
@@ -266,7 +305,17 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
     const before = entries.filter((e) => e.data.asOfDate < data.asOfDate && !(mode === "edit" && e.data.asOfDate === base?.asOfDate));
     return before.length ? before[before.length - 1]!.data : null;
   }, [entries, data, mode, base]);
-  const v = useMemo(() => (data ? validateSnapshot(data, { previous, today, scheduleDays: SCHEDULE_DAYS }) : null), [data, previous, today]);
+  const v = useMemo(
+    () =>
+      data
+        ? validateSnapshot(data, {
+            previous,
+            today,
+            scheduleDays: SCHEDULE_DAYS,
+          })
+        : null,
+    [data, previous, today],
+  );
   const isScheduled = !!data && data.asOfDate > today && data.asOfDate <= maxDate;
   // "New data" on the date that is already on the site: one plain message instead of the
   // chart-point error it causes, and a pointer to the right action.
@@ -328,7 +377,12 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
     d.asOfDate = asOf;
     d.period = { start: live.asOfDate, end: asOf, newCases: null };
     d.texts.periodLabel = suggestPeriodLabel(d.monitoringStart, asOf);
-    d.verification = { ...d.verification, sourceChecked: false, sumMismatchConfirmed: false, internalNote: "" };
+    d.verification = {
+      ...d.verification,
+      sourceChecked: false,
+      sumMismatchConfirmed: false,
+      internalNote: "",
+    };
     // The figures that are on the site now become a point on the dynamics chart.
     if (!d.history.points.some((p) => p.date === live.asOfDate)) {
       d.history.points.push({
@@ -355,7 +409,10 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
       const now = new Date().toISOString();
       const next: FileJson = clone(file);
       // The repository is public: internal notes are not written to it.
-      const out: SnapshotData = { ...clone(data), verification: { ...data.verification, internalNote: "" } };
+      const out: SnapshotData = {
+        ...clone(data),
+        verification: { ...data.verification, internalNote: "" },
+      };
       // Editing what is on the site and moving its date into the future schedules a copy:
       // the current figures stay live until that day.
       const scheduling = out.asOfDate > todayIso();
@@ -363,10 +420,17 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
       const at = next.snapshots.findIndex((x) => x.data.asOfDate === replaceKey);
       const clash = next.snapshots.findIndex((x, i) => i !== at && x.data.asOfDate === out.asOfDate);
       if (clash >= 0) {
-        setPublishError(`На ${formatLongDate(out.asOfDate, "uk")} вже є дані${out.asOfDate > todayIso() ? " (заплановані)" : ""}. Відкрийте їх і змініть там або виберіть іншу дату.`);
+        setPublishError(
+          `На ${formatLongDate(out.asOfDate, "uk")} вже є дані${out.asOfDate > todayIso() ? " (заплановані)" : ""}. Відкрийте їх і змініть там або виберіть іншу дату.`,
+        );
         return;
       }
-      if (at >= 0) next.snapshots[at] = { revision: next.snapshots[at]!.revision + 1, publishedAt: now, data: out };
+      if (at >= 0)
+        next.snapshots[at] = {
+          revision: next.snapshots[at]!.revision + 1,
+          publishedAt: now,
+          data: out,
+        };
       else next.snapshots.push({ revision: 1, publishedAt: now, data: out });
       next.snapshots.sort(byDate);
       const what = scheduling ? "заплановано" : mode === "new" ? "нові дані" : "виправлення";
@@ -377,11 +441,18 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
       setBase(clone(out));
       setData(clone(out));
       setReview(false);
-      setDone({ commit: r.commit, state: null, asOf: out.asOfDate, scheduled: scheduling });
+      setDone({
+        commit: r.commit,
+        state: null,
+        asOf: out.asOfDate,
+        scheduled: scheduling,
+      });
     } catch (e) {
       const err = e as GitHubError;
       setPublishError(
-        err.status === 409 ? "Хтось інший щойно змінив дані. Закрийте це вікно, натисніть «Завантажити заново» і внесіть зміни ще раз." : err.message,
+        err.status === 409 || err.status === 422
+          ? "Хтось інший щойно змінив дані. Закрийте це вікно, натисніть «Завантажити заново» і внесіть зміни ще раз."
+          : err.message,
       );
     } finally {
       setBusy(false);
@@ -399,7 +470,10 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
       setSha(r.sha);
       setFile(next);
       if (data?.asOfDate === date || base?.asOfDate === date) {
-        const onSite = [...next.snapshots].sort(byDate).reverse().find((x) => x.data.asOfDate <= todayIso())?.data;
+        const onSite = [...next.snapshots]
+          .sort(byDate)
+          .reverse()
+          .find((x) => x.data.asOfDate <= todayIso())?.data;
         if (onSite) (setMode("edit"), setBase(clone(onSite)), setData(clone(onSite)));
       }
       setDone(null);
@@ -426,7 +500,7 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
             <a href={site} target="_blank" rel="noopener">
               Сайт
             </a>
-            <button onClick={onLogout}>Вийти ({login})</button>
+            <button onClick={onLogout}>Вийти</button>
           </nav>
         </div>
       </header>
@@ -434,7 +508,7 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
       <main className="ed-main">
         {!file || !data || !live ? (
           <div className="adm-card">
-            {busy ? "Завантажую дані з GitHub…" : loadError}
+            {busy ? "Завантажую дані…" : loadError}
             {loadError && (
               <button className="btn" style={{ marginLeft: "1rem" }} onClick={load}>
                 <span>Спробувати ще раз</span>
@@ -454,15 +528,11 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
                   {done.scheduled
                     ? "До того на сайті лишаються поточні цифри. Нічого більше робити не треба."
                     : !done.state || done.state.status !== "completed"
-                    ? "Сайт і інфографіка оновлюються, це займає близько 2 хвилин."
-                    : done.state.conclusion === "success"
-                      ? "Сайт оновлено. Якщо бачите старі цифри, оновіть сторінку."
-                      : "Під час оновлення сайту сталася помилка."}{" "}
-                  {done.state?.url && (
-                    <a className="link" href={done.state.url} target="_blank" rel="noopener">
-                      Подробиці
-                    </a>
-                  )}
+                      ? "Сайт і інфографіка оновлюються, це займає близько 2 хвилин."
+                      : done.state.conclusion === "success"
+                        ? "Сайт оновлено. Якщо бачите старі цифри, оновіть сторінку."
+                        : "Під час оновлення сайту сталася помилка."}{" "}
+                  {done.state?.conclusion && done.state.conclusion !== "success" && "Повідомте адміністратора сайту."}
                 </span>
               </div>
             )}
@@ -490,7 +560,8 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
               <button className="ed-choice" aria-pressed={mode === "edit" && base?.asOfDate === live.asOfDate} onClick={() => startEdit(live)}>
                 <b>Виправити поточні дані</b>
                 <span>
-                  Уточнити цифри станом на {formatLongDate(live.asOfDate, "uk")}. Дату теж можна змінити, зокрема на день уперед: тоді виправлення з’явиться на сайті в цей день.
+                  Уточнити цифри станом на {formatLongDate(live.asOfDate, "uk")}. Дату теж можна змінити, зокрема на день уперед: тоді виправлення з’явиться на
+                  сайті в цей день.
                 </span>
               </button>
               <div className="ed-choice" aria-pressed={mode === "new"} role="group">
@@ -532,7 +603,9 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
             <p className="ed-help">{help.help}</p>
 
             <div className="ed-panel">
-              {step === "main" && <MainTab data={data} update={update} editable changeNote="" setChangeNote={() => undefined} issues={v?.issues ?? []} hideChangeNote />}
+              {step === "main" && (
+                <MainTab data={data} update={update} editable changeNote="" setChangeNote={() => undefined} issues={v?.issues ?? []} hideChangeNote />
+              )}
               {step === "categories" && <CategoriesTab data={data} update={update} editable />}
               {step === "history" && <HistoryTab data={data} update={update} editable />}
               {step === "texts" && <TextsTab data={data} update={update} editable />}
@@ -545,7 +618,11 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
         <footer className="ed-bar">
           <div className="ed-bar__inner">
             <span className="ed-bar__state">
-              {mode === "new" ? `Нові дані станом на ${formatLongDate(data.asOfDate, "uk")}` : changes.length ? `Змінено полів: ${changes.length}` : "Змін поки немає"}
+              {mode === "new"
+                ? `Нові дані станом на ${formatLongDate(data.asOfDate, "uk")}`
+                : changes.length
+                  ? `Змінено полів: ${changes.length}`
+                  : "Змін поки немає"}
               {isScheduled && <em className="ed-chip">Буде на сайті {formatLongDate(data.asOfDate, "uk")}</em>}
               {warnings.length > 0 && <em className="ed-chip ed-chip--warn">Попереджень: {warnings.length}</em>}
               {dataErrors.length > 0 && <em className="ed-chip ed-chip--err">Помилок: {dataErrors.length}</em>}
@@ -632,8 +709,8 @@ function ReviewDialog({
         <h2 id="ed-review-title">Перевірка перед публікацією</h2>
         {scheduledFor && (
           <p className="ed-scheduled-note">
-            Публікацію буде заплановано: ці дані з’являться на сайті {formatLongDate(scheduledFor, "uk")} після 00:10. До того на сайті лишаються цифри станом на{" "}
-            {formatLongDate(liveDate, "uk")}.
+            Публікацію буде заплановано: ці дані з’являться на сайті {formatLongDate(scheduledFor, "uk")} після 00:10. До того на сайті лишаються цифри станом
+            на {formatLongDate(liveDate, "uk")}.
           </p>
         )}
 
@@ -698,7 +775,11 @@ function ReviewDialog({
           {mismatch && (
             <>
               <label className="ed-check">
-                <input type="checkbox" checked={vf.sumMismatchConfirmed} onChange={(e) => update((d) => void (d.verification.sumMismatchConfirmed = e.target.checked))} />
+                <input
+                  type="checkbox"
+                  checked={vf.sumMismatchConfirmed}
+                  onChange={(e) => update((d) => void (d.verification.sumMismatchConfirmed = e.target.checked))}
+                />
                 <span>
                   Сума видів порушень ({sum}) відрізняється від головного показника ({data.totalCrimes}). Я перевірив(-ла): так у публікації ІМІ.
                 </span>

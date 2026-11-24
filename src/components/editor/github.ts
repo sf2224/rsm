@@ -5,7 +5,12 @@
 // The repository the site is built from. The Pages workflow passes it in
 // (NEXT_PUBLIC_GITHUB_REPOSITORY = owner/name), so moving the repo needs no code change.
 const [repoOwner, repoName] = (process.env.NEXT_PUBLIC_GITHUB_REPOSITORY || "sf2224/rsm").split("/") as [string, string];
-export const REPO = { owner: repoOwner, repo: repoName, branch: "main", file: "data/published/snapshots.json" } as const;
+export const REPO = {
+  owner: repoOwner,
+  repo: repoName,
+  branch: "main",
+  file: "data/published/snapshots.json",
+} as const;
 const API = "https://api.github.com";
 
 export class GitHubError extends Error {
@@ -18,24 +23,33 @@ export class GitHubError extends Error {
 }
 
 async function gh<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
-  const r = await fetch(`${API}${path}`, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-    },
-  });
+  let r: Response;
+  try {
+    r = await fetch(`${API}${path}`, {
+      ...init,
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+      },
+    });
+  } catch {
+    throw new GitHubError("Немає з'єднання з інтернетом або сервіс недоступний. Перевірте з'єднання й спробуйте ще раз.", 0);
+  }
   if (!r.ok) {
-    let msg = `GitHub ${r.status}`;
-    try {
-      const j = (await r.json()) as { message?: string };
-      if (j.message) msg = j.message;
-    } catch {
-      /* not JSON */
-    }
+    // People using the editor do not need GitHub's own (English) wording: plain messages only.
+    const msg =
+      r.status === 401
+        ? "Ключ доступу не підійшов: його скопійовано не повністю, або він прострочений. Зверніться до адміністратора сайту."
+        : r.status === 403 || r.status === 404
+          ? "Цей ключ доступу не дає права змінювати дані сайту. Зверніться до адміністратора сайту."
+          : r.status === 409
+            ? "Дані щойно змінив хтось інший. Натисніть «Завантажити заново» і внесіть зміни ще раз."
+            : r.status >= 500 || r.status === 0
+              ? "Сервіс тимчасово недоступний. Спробуйте за кілька хвилин."
+              : `Не вдалося зберегти зміни (код ${r.status}). Спробуйте ще раз або зверніться до адміністратора сайту.`;
     throw new GitHubError(msg, r.status);
   }
   return (await r.json()) as T;
@@ -56,11 +70,14 @@ export async function checkAccess(token: string): Promise<string> {
     try {
       await gh(token, `/repos/${REPO.owner}/${REPO.repo}/git/blobs`, {
         method: "POST",
-        body: JSON.stringify({ content: "imi-editor-access-check", encoding: "utf-8" }),
+        body: JSON.stringify({
+          content: "imi-editor-access-check",
+          encoding: "utf-8",
+        }),
       });
     } catch (e) {
       if (e instanceof GitHubError && (e.status === 403 || e.status === 404))
-        throw new GitHubError(`Цей токен не має права запису в репозиторій ${REPO.owner}/${REPO.repo}.`, 403);
+        throw new GitHubError("Цей ключ доступу не дає права змінювати дані сайту. Зверніться до адміністратора сайту.", 403);
       throw e;
     }
   }
@@ -89,19 +106,32 @@ export async function readDataFile(token: string): Promise<{ json: unknown; sha:
 export async function writeDataFile(token: string, json: unknown, sha: string, message: string): Promise<{ sha: string; commit: string }> {
   const r = await gh<{ content: { sha: string }; commit: { sha: string } }>(token, `/repos/${REPO.owner}/${REPO.repo}/contents/${REPO.file}`, {
     method: "PUT",
-    body: JSON.stringify({ message, content: utf8ToB64(`${JSON.stringify(json, null, 2)}\n`), sha, branch: REPO.branch }),
+    body: JSON.stringify({
+      message,
+      content: utf8ToB64(`${JSON.stringify(json, null, 2)}\n`),
+      sha,
+      branch: REPO.branch,
+    }),
   });
   return { sha: r.content.sha, commit: r.commit.sha };
 }
 
-export type RunState = { status: string; conclusion: string | null; url: string } | null;
+export type RunState = {
+  status: string;
+  conclusion: string | null;
+  url: string;
+} | null;
 
 /** State of the "Deploy site to GitHub Pages" run for a commit. */
 export async function deployState(token: string, commit: string): Promise<RunState> {
-  const r = await gh<{ workflow_runs: Array<{ name: string; status: string; conclusion: string | null; html_url: string }> }>(
-    token,
-    `/repos/${REPO.owner}/${REPO.repo}/actions/runs?head_sha=${commit}&per_page=10`,
-  );
+  const r = await gh<{
+    workflow_runs: Array<{
+      name: string;
+      status: string;
+      conclusion: string | null;
+      html_url: string;
+    }>;
+  }>(token, `/repos/${REPO.owner}/${REPO.repo}/actions/runs?head_sha=${commit}&per_page=10`);
   const run = r.workflow_runs.find((w) => w.name.toLowerCase().includes("pages")) ?? r.workflow_runs[0];
   return run ? { status: run.status, conclusion: run.conclusion, url: run.html_url } : null;
 }
@@ -131,7 +161,9 @@ export function hasVault(): boolean {
 
 export function vaultLogin(): string | null {
   try {
-    const v = JSON.parse(localStorage.getItem(STORE) ?? "null") as { login?: string } | null;
+    const v = JSON.parse(localStorage.getItem(STORE) ?? "null") as {
+      login?: string;
+    } | null;
     return v?.login ?? null;
   } catch {
     return null;
@@ -143,11 +175,24 @@ export async function saveVault(token: string, password: string, login: string) 
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await keyFrom(password, salt);
   const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(token));
-  localStorage.setItem(STORE, JSON.stringify({ v: 1, login, salt: toB64(salt), iv: toB64(iv), ct: toB64(ct) }));
+  localStorage.setItem(
+    STORE,
+    JSON.stringify({
+      v: 1,
+      login,
+      salt: toB64(salt),
+      iv: toB64(iv),
+      ct: toB64(ct),
+    }),
+  );
 }
 
 export async function openVault(password: string): Promise<string> {
-  const v = JSON.parse(localStorage.getItem(STORE) ?? "null") as { salt: string; iv: string; ct: string } | null;
+  const v = JSON.parse(localStorage.getItem(STORE) ?? "null") as {
+    salt: string;
+    iv: string;
+    ct: string;
+  } | null;
   if (!v) throw new Error("На цьому пристрої немає збереженого входу.");
   try {
     const key = await keyFrom(password, fromB64(v.salt));
