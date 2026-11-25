@@ -337,6 +337,11 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
       ]
     : [];
   const warnings = v ? v.issues.filter((i) => i.severity === "warning") : [];
+  // One-click fixes for warnings that have an obvious answer.
+  const quickFix = (i: Issue): { label: string; apply: () => void } | null =>
+    i.code === "period-end" && data
+      ? { label: `Зробити кінцем періоду ${formatLongDate(data.asOfDate, "uk")}`, apply: () => update((d) => void (d.period.end = d.asOfDate)) }
+      : null;
 
   // Any change to figures or texts withdraws the confirmations: they are given again in
   // the review step for exactly what is about to be published.
@@ -602,6 +607,30 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
             </nav>
             <p className="ed-help">{help.help}</p>
 
+            {warnings.length > 0 && (
+              <section id="ed-warnings" className="ed-issues ed-issues--warn ed-warnings">
+                <h3>Зверніть увагу</h3>
+                <p className="muted">
+                  Попередження не заважають публікації. Це підказка, що щось виглядає незвично: перевірте, і якщо так і має бути, просто публікуйте.
+                </p>
+                <ul>
+                  {warnings.map((i, n) => {
+                    const fx = quickFix(i);
+                    return (
+                      <li key={n}>
+                        {i.message}.{" "}
+                        {fx && (
+                          <button type="button" className="link" onClick={fx.apply}>
+                            {fx.label}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+
             <div className="ed-panel">
               {step === "main" && (
                 <MainTab data={data} update={update} editable changeNote="" setChangeNote={() => undefined} issues={v?.issues ?? []} hideChangeNote />
@@ -624,7 +653,15 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
                   ? `Змінено полів: ${changes.length}`
                   : "Змін поки немає"}
               {isScheduled && <em className="ed-chip">Буде на сайті {formatLongDate(data.asOfDate, "uk")}</em>}
-              {warnings.length > 0 && <em className="ed-chip ed-chip--warn">Попереджень: {warnings.length}</em>}
+              {warnings.length > 0 && (
+                <button
+                  type="button"
+                  className="ed-chip ed-chip--warn"
+                  onClick={() => document.getElementById("ed-warnings")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                >
+                  Попереджень: {warnings.length}
+                </button>
+              )}
               {dataErrors.length > 0 && <em className="ed-chip ed-chip--err">Помилок: {dataErrors.length}</em>}
             </span>
             {dirty && (
@@ -649,6 +686,7 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
           liveDate={live?.asOfDate ?? ""}
           dataErrors={dataErrors}
           warnings={warnings}
+          quickFix={quickFix}
           sum={v.categorySum}
           busy={busy}
           error={publishError}
@@ -672,6 +710,7 @@ function ReviewDialog({
   liveDate,
   dataErrors,
   warnings,
+  quickFix,
   sum,
   busy,
   error,
@@ -687,6 +726,7 @@ function ReviewDialog({
   liveDate: string;
   dataErrors: Issue[];
   warnings: Issue[];
+  quickFix?: (i: Issue) => { label: string; apply: () => void } | null;
   sum: number;
   busy: boolean;
   error: string | null;
@@ -757,11 +797,21 @@ function ReviewDialog({
         {warnings.length > 0 && (
           <section className="ed-issues ed-issues--warn">
             <h3>Зверніть увагу</h3>
-            <p className="muted">Це попередження. Якщо так і має бути, публікуйте.</p>
+            <p className="muted">Попередження не заважають публікації. Якщо так і має бути, публікуйте.</p>
             <ul>
-              {warnings.map((i, n) => (
-                <li key={n}>{i.message}</li>
-              ))}
+              {warnings.map((i, n) => {
+                const fx = quickFix?.(i);
+                return (
+                  <li key={n}>
+                    {i.message}.{" "}
+                    {fx && (
+                      <button type="button" className="link" onClick={fx.apply}>
+                        {fx.label}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}

@@ -1,5 +1,6 @@
 import { snapshotDataSchema, visibleCategories, categorySum, type SnapshotData } from "./schema";
 import { suggestPeriodLabel, isoCompare, addDaysIso } from "./validation-helpers";
+import { formatLongDate } from "./dates";
 
 export type IssueSeverity = "error" | "warning" | "info";
 /**
@@ -51,12 +52,9 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
     return { issues, data: null, canSubmit: false, canPublish: false, categorySum: 0, total: 0 };
   }
   const d = parsed.data;
-  const err = (code: string, message: string, field?: string, kind: IssueKind = "data") =>
-    issues.push({ code, severity: "error", kind, field, message });
-  const warn = (code: string, message: string, field?: string) =>
-    issues.push({ code, severity: "warning", kind: "check", field, message });
-  const info = (code: string, message: string, field?: string) =>
-    issues.push({ code, severity: "info", kind: "check", field, message });
+  const err = (code: string, message: string, field?: string, kind: IssueKind = "data") => issues.push({ code, severity: "error", kind, field, message });
+  const warn = (code: string, message: string, field?: string) => issues.push({ code, severity: "warning", kind: "check", field, message });
+  const info = (code: string, message: string, field?: string) => issues.push({ code, severity: "info", kind: "check", field, message });
 
   // ---- Dates -------------------------------------------------------------
   if (isoCompare(d.asOfDate, d.monitoringStart) <= 0) err("dates-order", "Дата актуальності має бути пізніше за початок моніторингу", "asOfDate");
@@ -76,7 +74,12 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
   if (start && end) {
     if (isoCompare(start, end) >= 0) err("period-order", "Початок звітного періоду має бути раніше за кінець", "period.start");
     if (isoCompare(start, d.monitoringStart) < 0) err("period-before-start", "Звітний період не може починатися до початку моніторингу", "period.start");
-    if (end !== d.asOfDate) warn("period-end", "Кінець звітного періоду не збігається з датою актуальності", "period.end");
+    if (end !== d.asOfDate)
+      warn(
+        "period-end",
+        `Звітний період закінчується ${formatLongDate(end, "uk")}, а дані — станом на ${formatLongDate(d.asOfDate, "uk")}. Зазвичай це одна дата`,
+        "period.end",
+      );
   }
   if (newCases !== null && !start) warn("new-cases-no-period", "Кількість нових випадків вказана без звітного періоду", "period.newCases");
   if (newCases !== null && newCases > d.totalCrimes) err("new-cases-gt-total", "Нових випадків не може бути більше за загальний показник", "period.newCases");
@@ -87,7 +90,11 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
     err("killed-order", "Загиблих під час роботи не може бути більше, ніж загиблих загалом", "casualties.killedOnDuty");
   const killings = d.categories.find((c) => c.id === "killings" && !c.hidden);
   if (killings && killedOnDuty !== null && killings.value !== killedOnDuty)
-    warn("killings-vs-on-duty", `Категорія «Вбивства» (${killings.value}) не збігається з кількістю загиблих під час роботи (${killedOnDuty})`, "casualties.killedOnDuty");
+    warn(
+      "killings-vs-on-duty",
+      `Категорія «Вбивства» (${killings.value}) не збігається з кількістю загиблих під час роботи (${killedOnDuty})`,
+      "casualties.killedOnDuty",
+    );
 
   // ---- Categories ---------------------------------------------------------
   const visible = visibleCategories(d);
@@ -112,8 +119,7 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
   const suggestion = suggestPeriodLabel(d.monitoringStart, d.asOfDate);
   if (d.texts.periodLabel.uk && d.texts.periodLabel.uk !== suggestion.uk)
     info("period-label-differs", `Назва періоду відрізняється від розрахованої за датами: «${suggestion.uk}»`, "texts.periodLabel.uk");
-  if (!!d.texts.editorNote.uk !== !!d.texts.editorNote.en)
-    err("translation-missing", "Примітка редакції заповнена лише однією мовою", "texts.editorNote");
+  if (!!d.texts.editorNote.uk !== !!d.texts.editorNote.en) err("translation-missing", "Примітка редакції заповнена лише однією мовою", "texts.editorNote");
   if (!d.sources.articleUk) err("source-missing", "Додайте посилання на українську публікацію ІМІ", "sources.articleUk");
   if (!d.sources.articleEn) warn("source-en-missing", "Немає посилання на англійську публікацію ІМІ", "sources.articleEn");
   for (const [k, v] of Object.entries(d.sources)) {
@@ -124,13 +130,20 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
   const pts = d.history.points;
   pts.forEach((p, i) => {
     if (!p.source) err("history-source", `Динаміка, ${p.date}: додайте посилання на джерело`, `history.points.${i}.source`);
-    if (isoCompare(p.date, d.asOfDate) >= 0) err("history-date", `Графік динаміки: точка ${p.date} не може бути пізніше чи в той самий день, що й дата «станом на» (${d.asOfDate}). Змініть дату «станом на» або цю точку в розділі «Динаміка»`, `history.points.${i}.date`);
+    if (isoCompare(p.date, d.asOfDate) >= 0)
+      err(
+        "history-date",
+        `Графік динаміки: точка ${p.date} не може бути пізніше чи в той самий день, що й дата «станом на» (${d.asOfDate}). Змініть дату «станом на» або цю точку в розділі «Динаміка»`,
+        `history.points.${i}.date`,
+      );
     if (isoCompare(p.date, d.monitoringStart) < 0) err("history-date", `Динаміка, ${p.date}: дата раніше за початок моніторингу`, `history.points.${i}.date`);
-    if (i > 0 && isoCompare(pts[i - 1]!.date, p.date) >= 0) err("history-order", `Динаміка: точки мають іти за зростанням дат (${p.date})`, `history.points.${i}.date`);
+    if (i > 0 && isoCompare(pts[i - 1]!.date, p.date) >= 0)
+      err("history-order", `Динаміка: точки мають іти за зростанням дат (${p.date})`, `history.points.${i}.date`);
     if (!!p.note.uk !== !!p.note.en) err("translation-missing", `Динаміка, ${p.date}: примітка лише однією мовою`, `history.points.${i}.note`);
   });
   const lastTotal = [...pts].reverse().find((p) => p.total !== null)?.total;
-  if (lastTotal != null && lastTotal > d.totalCrimes) warn("history-gt-total", `В історії є значення ${lastTotal}, більше за поточний показник ${d.totalCrimes}`, "history.points");
+  if (lastTotal != null && lastTotal > d.totalCrimes)
+    warn("history-gt-total", `В історії є значення ${lastTotal}, більше за поточний показник ${d.totalCrimes}`, "history.points");
   const yrs = d.history.years.map((y) => y.year);
   if (new Set(yrs).size !== yrs.length) err("history-years", "Рік в історії повторюється", "history.years");
   d.history.years.forEach((y, i) => {
@@ -152,8 +165,7 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
       info("sum-mismatch-confirmed", `${msg} Розбіжність підтверджена редактором.`, "verification");
     }
   }
-  if (!d.verification.sourceChecked)
-    err("source-not-checked", "Підтвердіть, що цифри звірено з публікацією ІМІ", "verification.sourceChecked", "gate");
+  if (!d.verification.sourceChecked) err("source-not-checked", "Підтвердіть, що цифри звірено з публікацією ІМІ", "verification.sourceChecked", "gate");
 
   // ---- Comparison with the previous publication ------------------------------
   const prev = ctx.previous;
