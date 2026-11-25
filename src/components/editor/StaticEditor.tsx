@@ -190,7 +190,7 @@ const STEPS: Array<{ id: Step; title: string; help: string }> = [
   {
     id: "main",
     title: "Головні цифри",
-    help: "Загальна кількість злочинів, дата, на яку актуальні дані, нові випадки за останній період і кількість загиблих медійників. Числа беріть з публікації ІМІ.",
+    help: "Загальна кількість злочинів, дата, на яку актуальні дані, нові випадки за останній період, кількість загиблих медійників і посилання на публікації ІМІ. Числа беріть з публікації ІМІ.",
   },
   {
     id: "categories",
@@ -205,20 +205,12 @@ const STEPS: Array<{ id: Step; title: string; help: string }> = [
   {
     id: "texts",
     title: "Тексти UA/EN",
-    help: "Підпис періоду («4 роки і 8 місяців повномасштабної війни»), примітка редакції та посилання на публікації ІМІ українською й англійською.",
+    help: "Підпис періоду («4 роки і 9 місяців повномасштабної війни») і примітка редакції. Підпис періоду при нових даних заповнюється сам.",
   },
 ];
 type Step = "main" | "categories" | "history" | "texts";
 const stepOf = (field?: string): Step =>
-  !field
-    ? "main"
-    : field.startsWith("categories")
-      ? "categories"
-      : field.startsWith("history")
-        ? "history"
-        : field.startsWith("texts") || field.startsWith("sources")
-          ? "texts"
-          : "main";
+  !field ? "main" : field.startsWith("categories") ? "categories" : field.startsWith("history") ? "history" : field.startsWith("texts") ? "texts" : "main";
 
 function Workspace({ token, login, onLogout }: { token: string; login: string; onLogout: () => void }) {
   const [file, setFile] = useState<FileJson | null>(null);
