@@ -53,16 +53,18 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Build static site
-        # Default address: https://<owner>.github.io/<repo>/.
-        # Own (sub)domain: set the repository variable PAGES_DOMAIN, e.g. crimes.imi.org.ua.
-        # Then the site is built for the domain root and out/CNAME is written, so the
-        # forced push to gh-pages keeps the custom domain instead of wiping it.
+        # The site lives on its own subdomain rucrimes.imi.org.ua (verified in the sf2224
+        # account, DNS CNAME rucrimes -> sf2224.github.io). It is built for the domain root and
+        # out/CNAME is written, so the forced push to gh-pages keeps the custom domain.
+        # The repository variable PAGES_DOMAIN overrides the domain; set it to "off" to go
+        # back to https://<owner>.github.io/<repo>/.
         env:
-          PAGES_DOMAIN: ${{ vars.PAGES_DOMAIN }}
+          PAGES_DOMAIN: ${{ vars.PAGES_DOMAIN || 'rucrimes.imi.org.ua' }}
           NEXT_PUBLIC_GITHUB_REPOSITORY: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
+          if [ "$PAGES_DOMAIN" = "off" ]; then PAGES_DOMAIN=""; fi
           if [ -n "$PAGES_DOMAIN" ]; then
             export BASE_PATH="" SITE_URL="https://$PAGES_DOMAIN"
           else

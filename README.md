@@ -191,7 +191,7 @@ npm run typecheck && npm test && npm run build
 
 Одноразове налаштування: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `gh-pages` / `(root)` → Save.**
 
-Серверна адмін-панель і API у статичну версію не входять: їм потрібен сервер. Для Pages є **редактор даних** за адресою `/editor/` (https://sf2224.github.io/rsm/editor/):
+Серверна адмін-панель і API у статичну версію не входять: їм потрібен сервер. Для Pages є **редактор даних** за адресою `/editor/` (https://rucrimes.imi.org.ua/editor/):
 
 - редагує `data/published/snapshots.json` у репозиторії: головний показник, дати, загиблих, категорії, точки динаміки та підсумки років (цифри, примітки, посилання), тексти UA/EN, першоджерела;
 - два сценарії на першому екрані: «Виправити поточні дані» (уточнення в будь-який день) і «Додати нові дані» на обрану дату (попередні цифри автоматично стають точкою на графіку);
@@ -204,7 +204,7 @@ npm run typecheck && npm test && npm run build
 
 Файл також можна змінювати прямо в GitHub або вивантаженням з локальної адмінки (`npm run pages:export`). Подробиці — у [data/published/README.md](data/published/README.md).
 
-Власний домен: у DNS домену додайте запис CNAME `<піддомен>` → `sf2224.github.io`; у репозиторії задайте змінну `PAGES_DOMAIN` (Settings → Secrets and variables → Actions → Variables), наприклад `crimes.imi.org.ua`, і перезапустіть збірку; потім у Settings → Pages впишіть той самий домен і увімкніть Enforce HTTPS. Збірка тоді йде без `/rsm` у шляху й кладе файл `CNAME` у гілку gh-pages.
+Домен: сайт працює на https://rucrimes.imi.org.ua/ (DNS: CNAME `rucrimes` → `sf2224.github.io`; домен підтверджено в акаунті sf2224 через TXT `_github-pages-challenge-sf2224.rucrimes`, цей запис не видаляти). Workflow за замовчуванням збирає сайт для цього домену й кладе файл `CNAME` у gh-pages. Змінна репозиторію `PAGES_DOMAIN` замінює домен; значення `off` повертає адресу `https://sf2224.github.io/rsm/`. Якщо сайт колись закриють, одразу видаліть CNAME-запис у DNS.
 
 ## Сервер і продакшн
 
