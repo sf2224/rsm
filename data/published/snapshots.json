@@ -3,8 +3,8 @@
   "version": 1,
   "snapshots": [
     {
-      "revision": 12,
-      "publishedAt": "2026-11-24T11:57:15.435Z",
+      "revision": 13,
+      "publishedAt": "2026-11-25T08:40:46.586Z",
       "data": {
         "schemaVersion": 1,
         "totalCrimes": 993,
@@ -12,7 +12,7 @@
         "asOfDate": "2026-11-24",
         "period": {
           "start": "2026-10-24",
-          "end": "2026-11-23",
+          "end": "2026-11-24",
           "newCases": 4
         },
         "casualties": {
