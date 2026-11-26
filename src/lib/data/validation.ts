@@ -130,10 +130,16 @@ export function validateSnapshot(input: unknown, ctx: ValidationContext): Valida
   const pts = d.history.points;
   pts.forEach((p, i) => {
     if (!p.source) err("history-source", `Динаміка, ${p.date}: додайте посилання на джерело`, `history.points.${i}.source`);
-    if (isoCompare(p.date, d.asOfDate) >= 0)
+    if (p.date === d.asOfDate)
+      err(
+        "history-same-day",
+        `Графік динаміки: точка ${formatLongDate(p.date, "uk")} повторює поточні дані сайту. Графік і так показує поточні дані останньою точкою, тому цю точку треба видалити`,
+        `history.points.${i}.date`,
+      );
+    else if (isoCompare(p.date, d.asOfDate) > 0)
       err(
         "history-date",
-        `Графік динаміки: точка ${p.date} не може бути пізніше чи в той самий день, що й дата «станом на» (${d.asOfDate}). Змініть дату «станом на» або цю точку в розділі «Динаміка»`,
+        `Графік динаміки: точка ${p.date} не може бути пізніше за дату «станом на» (${d.asOfDate}). Змініть дату «станом на» або цю точку в розділі «Динаміка»`,
         `history.points.${i}.date`,
       );
     if (isoCompare(p.date, d.monitoringStart) < 0) err("history-date", `Динаміка, ${p.date}: дата раніше за початок моніторингу`, `history.points.${i}.date`);

@@ -325,7 +325,12 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
               } as Issue,
             ]
           : []),
-        ...v.issues.filter((i) => i.severity === "error" && i.kind !== "gate" && !(sameDayAsLive && (i.code === "history-date" || i.code === "period-order"))),
+        ...v.issues.filter(
+          (i) =>
+            i.severity === "error" &&
+            i.kind !== "gate" &&
+            !(sameDayAsLive && (i.code === "history-date" || i.code === "history-same-day" || i.code === "period-order")),
+        ),
       ]
     : [];
   const warnings = v ? v.issues.filter((i) => i.severity === "warning") : [];
@@ -333,7 +338,12 @@ function Workspace({ token, login, onLogout }: { token: string; login: string; o
   const quickFix = (i: Issue): { label: string; apply: () => void } | null =>
     i.code === "period-end" && data
       ? { label: `Зробити кінцем періоду ${formatLongDate(data.asOfDate, "uk")}`, apply: () => update((d) => void (d.period.end = d.asOfDate)) }
-      : null;
+      : i.code === "history-same-day" && data
+        ? {
+            label: "Видалити цю точку",
+            apply: () => update((d) => void (d.history.points = d.history.points.filter((p) => p.date !== d.asOfDate))),
+          }
+        : null;
 
   // Any change to figures or texts withdraws the confirmations: they are given again in
   // the review step for exactly what is about to be published.
@@ -774,14 +784,23 @@ function ReviewDialog({
           <section className="ed-issues ed-issues--err">
             <h3>Потрібно виправити перед публікацією</h3>
             <ul>
-              {dataErrors.map((i, n) => (
-                <li key={n}>
-                  {i.message}{" "}
-                  <button className="link" onClick={() => onGo(i.field)}>
-                    Виправити
-                  </button>
-                </li>
-              ))}
+              {dataErrors.map((i, n) => {
+                const fx = quickFix?.(i);
+                return (
+                  <li key={n}>
+                    {i.message}{" "}
+                    {fx ? (
+                      <button className="link" onClick={fx.apply}>
+                        {fx.label}
+                      </button>
+                    ) : (
+                      <button className="link" onClick={() => onGo(i.field)}>
+                        Виправити
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}

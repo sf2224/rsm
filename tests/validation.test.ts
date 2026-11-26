@@ -108,7 +108,10 @@ describe("schema hardening", () => {
 describe("period label", () => {
   it("is derived from dates", () => {
     expect(monthsBetween("2022-02-24", "2026-10-24")).toBe(56);
-    expect(suggestPeriodLabel("2022-02-24", "2026-10-24")).toEqual({ uk: "4 роки і 8 місяців повномасштабної війни", en: "4 years, 8 months of the full-scale war" });
+    expect(suggestPeriodLabel("2022-02-24", "2026-10-24")).toEqual({
+      uk: "4 роки і 8 місяців повномасштабної війни",
+      en: "4 years, 8 months of the full-scale war",
+    });
     expect(suggestPeriodLabel("2022-02-24", "2027-02-24").uk).toBe("5 років повномасштабної війни");
   });
 });
@@ -131,9 +134,10 @@ describe("history (dynamics by year)", () => {
     d.history.points[0] = b!;
     d.history.points[1] = a!;
     d.history.points.push({ ...a!, date: d.asOfDate });
+    d.history.points.push({ ...a!, date: "2099-01-01" });
     d.history.years.push({ ...d.history.years[0]! });
     const r = validateSnapshot(d, ctx);
-    expect(codes(r)).toEqual(expect.arrayContaining(["history-order", "history-date", "history-years"]));
+    expect(codes(r)).toEqual(expect.arrayContaining(["history-order", "history-same-day", "history-date", "history-years"]));
     expect(r.canSubmit).toBe(false);
   });
   it("warns when a past value exceeds the current total", () => {
